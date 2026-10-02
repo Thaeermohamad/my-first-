@@ -1,0 +1,23 @@
+{
+  "name": "تطبيقي الأول",
+  "short_name": "تطبيقي",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f0f4f8",
+  "theme_color": "#2196F3",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192/2196F3/ffffff?text=App",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512/2196F3/ffffff?text=App",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
