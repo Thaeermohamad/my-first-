@@ -6,7 +6,7 @@ const DEFAULT_DEVICES = [
   { id: 'd2', name: 'الصالة',   icon: '💡', mode: 'always',    duration: 300, state: false },
   { id: 'd3', name: 'المطبخ',   icon: '💡', mode: 'always',    duration: 300, state: false },
   { id: 'd4', name: 'الحمام',   icon: '🚿', mode: 'always',    duration: 300, state: false },
-  { id: 'd5', name: 'الحديقة',  icon: '🌿', mode: 'always',    duration: 300, state: false },
+  { id: 'd5', name: 'الحديقة',  icon: '🥀', mode: 'always',    duration: 300, state: false },
   { id: 'd6', name: 'المدخل',   icon: '🚪', mode: 'always',    duration: 300, state: false },
 ];
 
