@@ -11,7 +11,7 @@
 <body>
   <header>
     <h1>🏠 تحكم المنزل</h1>
-    <p id="status-connection" class="status">جاري الاتصال...</p>
+    <p id="status-connection" class="status">✅ التطبيق جاهز</p>
   </header>
 
   <main>
@@ -45,7 +45,7 @@
             </label>
             <label class="mode-option">
               <input type="radio" name="mode" value="momentary">
-              <span>⏰ لحظي (ثانية)</span>
+              <span>⏰ لحظي (1 ثانية)</span>
             </label>
             <label class="mode-option">
               <input type="radio" name="mode" value="timer">
@@ -53,21 +53,28 @@
             </label>
             <label class="mode-option">
               <input type="radio" name="mode" value="flash">
-              <span>⚡ فلاش</span>
+              <span>⚡ فلاش دائم</span>
             </label>
           </div>
         </label>
 
-        <label id="duration-label" class="hidden">
-          ⏱️ المدة (بالدقائق)
-          <input type="number" id="setting-duration" min="1" max="120" value="5">
-          <div class="quick-times">
-            <button onclick="setDuration(1)">1 د</button>
-            <button onclick="setDuration(5)">5 د</button>
-            <button onclick="setDuration(10)">10 د</button>
-            <button onclick="setDuration(30)">30 د</button>
+        <div id="duration-label" class="hidden">
+          <label>⏱️ المدة</label>
+          <div class="duration-inputs">
+            <div class="duration-field">
+              <input type="number" id="duration-h" min="0" max="23" value="0">
+              <span>ساعة</span>
+            </div>
+            <div class="duration-field">
+              <input type="number" id="duration-m" min="0" max="59" value="5">
+              <span>دقيقة</span>
+            </div>
+            <div class="duration-field">
+              <input type="number" id="duration-s" min="0" max="59" value="0">
+              <span>ثانية</span>
+            </div>
           </div>
-        </label>
+        </div>
 
         <div class="modal-actions">
           <button class="btn-save" onclick="saveSettings()">💾 حفظ</button>
