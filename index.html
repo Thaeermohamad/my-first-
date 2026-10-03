@@ -3,18 +3,80 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#2196F3">
-  <title>تطبيقي الأول</title>
+  <meta name="theme-color" content="#0a0e1a">
+  <title>تحكم المنزل</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>🎉 مرحباً بك في تطبيقي الأول!</h1>
-  <p>هذا أول تطبيق PWA خاصتي.</p>
+  <header>
+    <h1>🏠 تحكم المنزل</h1>
+    <p id="status-connection" class="status">جاري الاتصال...</p>
+  </header>
 
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js');
-    }
-  </script>
+  <main>
+    <section id="devices"></section>
+
+    <section class="sliders-section">
+      <h2>🎚️ التحكم السريع</h2>
+      <div id="sliders"></div>
+    </section>
+  </main>
+
+  <!-- نافذة الإعدادات -->
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-title">⚙️ الإعدادات</h2>
+        <button class="close-btn" onclick="closeSettings()">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>
+          📝 الاسم
+          <input type="text" id="setting-name">
+        </label>
+
+        <label>
+          🎛️ الوضع
+          <div class="modes">
+            <label class="mode-option">
+              <input type="radio" name="mode" value="always">
+              <span>🕐 دائم</span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="momentary">
+              <span>⏰ لحظي (ثانية)</span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="timer">
+              <span>⏱️ مؤقت</span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="flash">
+              <span>⚡ فلاش</span>
+            </label>
+          </div>
+        </label>
+
+        <label id="duration-label" class="hidden">
+          ⏱️ المدة (بالدقائق)
+          <input type="number" id="setting-duration" min="1" max="120" value="5">
+          <div class="quick-times">
+            <button onclick="setDuration(1)">1 د</button>
+            <button onclick="setDuration(5)">5 د</button>
+            <button onclick="setDuration(10)">10 د</button>
+            <button onclick="setDuration(30)">30 د</button>
+          </div>
+        </label>
+
+        <div class="modal-actions">
+          <button class="btn-save" onclick="saveSettings()">💾 حفظ</button>
+          <button class="btn-cancel" onclick="closeSettings()">إلغاء</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
