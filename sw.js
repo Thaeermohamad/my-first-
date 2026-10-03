@@ -1,6 +1,5 @@
 const CACHE = 'my-app-v1';
-const FILES = ['./', './index.html', './manifest.json'];
-
+const FILES = ['./', './index.html', './manifest.json', './style.css', './app.js'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
   self.skipWaiting();
