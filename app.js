@@ -2,12 +2,12 @@
 // الإعدادات الافتراضية
 // ============================================
 const DEFAULT_DEVICES = [
-  { id: 'd1', name: 'الغرفة',   icon: '💡', mode: 'always',    duration: 5,  state: false },
-  { id: 'd2', name: 'الصالة',   icon: '💡', mode: 'always',    duration: 5,  state: false },
-  { id: 'd3', name: 'المطبخ',   icon: '💡', mode: 'always',    duration: 5,  state: false },
-  { id: 'd4', name: 'الحمام',   icon: '🚿', mode: 'always',    duration: 5,  state: false },
-  { id: 'd5', name: 'الحديقة',  icon: '🌿', mode: 'always',    duration: 5,  state: false },
-  { id: 'd6', name: 'المدخل',   icon: '🚪', mode: 'always',    duration: 5,  state: false },
+  { id: 'd1', name: 'الغرفة',   icon: '💡', mode: 'always',    duration: 300, state: false },
+  { id: 'd2', name: 'الصالة',   icon: '💡', mode: 'always',    duration: 300, state: false },
+  { id: 'd3', name: 'المطبخ',   icon: '💡', mode: 'always',    duration: 300, state: false },
+  { id: 'd4', name: 'الحمام',   icon: '🚿', mode: 'always',    duration: 300, state: false },
+  { id: 'd5', name: 'الحديقة',  icon: '🌿', mode: 'always',    duration: 300, state: false },
+  { id: 'd6', name: 'المدخل',   icon: '🚪', mode: 'always',    duration: 300, state: false },
 ];
 
 const DEFAULT_SLIDERS = [
@@ -34,7 +34,9 @@ function saveData(key, data) {
 // ============================================
 let { devices, sliders } = loadData();
 let currentEditId = null;
-const timers = {}; // مؤقتات الأنشطة
+const activeTimers = {};   // مؤقتات العد التنازلي
+const flashIntervals = {}; // مؤقتات الفلاش
+const flashStopTimeouts = {}; // مؤقتات توقف الفلاش
 
 // ============================================
 // رسم الأجهزة
@@ -42,7 +44,7 @@ const timers = {}; // مؤقتات الأنشطة
 function renderDevices() {
   const container = document.getElementById('devices');
   container.innerHTML = devices.map(d => `
-    <div class="device-card ${d.state ? 'active' : ''}" id="card-${d.id}">
+    <div class="device-card ${d.state ? 'active' : ''} ${d.isFlashing ? 'flashing' : ''}" id="card-${d.id}">
       <div class="device-header">
         <div class="device-name">
           <span class="icon">${d.icon}</span>
@@ -52,8 +54,7 @@ function renderDevices() {
       </div>
       <div class="device-mode">
         الوضع: <span class="mode-badge">${modeLabel(d.mode)}</span>
-        ${d.mode === 'timer' ? ` — ${d.duration} دقيقة` : ''}
-        ${d.mode === 'flash' ? ' — 5 ثوان' : ''}
+        ${d.mode === 'timer' ? ` — ${formatDuration(d.duration)}` : ''}
       </div>
       <button class="toggle-btn" onclick="toggleDevice('${d.id}')">
         ${d.state ? '⏹️ إطفاء' : '▶️ تشغيل'}
@@ -70,6 +71,13 @@ function modeLabel(mode) {
     timer: '⏱️ مؤقت',
     flash: '⚡ فلاش',
   }[mode] || mode;
+}
+
+function formatDuration(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
 // ============================================
@@ -97,42 +105,46 @@ function toggleDevice(id) {
   const device = devices.find(d => d.id === id);
   if (!device) return;
 
-  const newState = !device.state;
-  setDeviceState(id, newState);
-
-  // تنظيف أي مؤقت سابق
-  if (timers[id]) {
-    clearTimeout(timers[id]);
-    delete timers[id];
+  // إذا كان يفلش حالياً → أوقفه (سيناريو B: يومض أسرع 3 ثوان ثم يتوقف)
+  if (device.isFlashing) {
+    stopFlashing(id);
+    return;
   }
+
+  const newState = !device.state;
+
+  // نظّف كل المؤقتات السابقة لهذا الجهاز
+  clearDeviceTimers(id);
   device.countdownText = '';
 
-  // منطق كل وضع
+  device.state = newState;
+
   switch (device.mode) {
     case 'always':
       // لا شي إضافي
       break;
 
     case 'momentary':
-      // شغّل ثانية ثم أطفئ
       if (newState) {
-        setTimeout(() => {
-          setDeviceState(id, false);
+        // شغّل ثانية ثم أطفئ
+        activeTimers[id] = setTimeout(() => {
+          device.state = false;
+          delete activeTimers[id];
+          renderDevices();
+          saveData('devices', devices);
         }, 1000);
       }
       break;
 
     case 'timer':
-      // شغّل لمدة d.duration دقيقة ثم أطفئ
       if (newState) {
         startCountdown(id, device.duration);
       }
       break;
 
     case 'flash':
-      // وميض 5 ثوان (كل 0.5 ثانية)
       if (newState) {
-        startFlash(id);
+        startFlashing(id);
       }
       break;
   }
@@ -141,58 +153,116 @@ function toggleDevice(id) {
   saveData('devices', devices);
 }
 
-function setDeviceState(id, state) {
+// ============================================
+// تنظيف مؤقتات الجهاز
+// ============================================
+function clearDeviceTimers(id) {
+  if (activeTimers[id]) {
+    clearTimeout(activeTimers[id]);
+    delete activeTimers[id];
+  }
+  if (flashIntervals[id]) {
+    clearInterval(flashIntervals[id]);
+    delete flashIntervals[id];
+  }
+  if (flashStopTimeouts[id]) {
+    clearTimeout(flashStopTimeouts[id]);
+    delete flashStopTimeouts[id];
+  }
   const device = devices.find(d => d.id === id);
-  if (device) device.state = state;
+  if (device) device.isFlashing = false;
 }
 
+// ============================================
 // ⏱️ العد التنازلي للمؤقت
-function startCountdown(id, minutes) {
+// ============================================
+function startCountdown(id, totalSeconds) {
   const device = devices.find(d => d.id === id);
-  let remaining = minutes * 60; // بالثواني
+  let remaining = totalSeconds;
 
   const tick = () => {
-    const m = Math.floor(remaining / 60);
+    const h = Math.floor(remaining / 3600);
+    const m = Math.floor((remaining % 3600) / 60);
     const s = remaining % 60;
-    device.countdownText = `⏱️ متبقي: ${m}:${s.toString().padStart(2, '0')}`;
+    device.countdownText = `⏱️ متبقي: ${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     renderDevices();
 
     if (remaining <= 0) {
-      setDeviceState(id, false);
+      device.state = false;
       device.countdownText = '';
+      delete activeTimers[id];
       renderDevices();
       saveData('devices', devices);
       return;
     }
 
     remaining--;
-    timers[id] = setTimeout(tick, 1000);
+    activeTimers[id] = setTimeout(tick, 1000);
   };
 
   tick();
 }
 
-// ⚡ الفلاش (5 ثوان - كل 0.5 ثانية)
-function startFlash(id) {
+// ============================================
+// ⚡ الفلاش الدائم
+// ============================================
+function startFlashing(id) {
   const device = devices.find(d => d.id === id);
-  let elapsed = 0;
-  const total = 5000; // 5 ثوان
-  const interval = 500; // كل 0.5 ثانية
+  device.isFlashing = true;
+  let speed = 500; // يبدأ بـ 500ms
 
-  const flash = setInterval(() => {
+  const doFlash = () => {
     device.state = !device.state;
     renderDevices();
-    elapsed += interval;
+
+    // كل دورة، نسرّع شوي (سيناريو B عند الإيقاف)
+    if (speed > 80) speed -= 20;
+
+    flashIntervals[id] = setTimeout(doFlash, speed);
+  };
+
+  doFlash();
+  renderDevices();
+}
+
+// توقف الفلاش — سيناريو B: يومض أسرع 3 ثوان ثم يتوقف
+function stopFlashing(id) {
+  const device = devices.find(d => d.id === id);
+  if (!device) return;
+
+  // نوقف المؤقت الحالي
+  if (flashIntervals[id]) {
+    clearTimeout(flashIntervals[id]);
+    delete flashIntervals[id];
+  }
+
+  device.isFlashing = false;
+
+  // نبدأ "النهاية السريعة" — يومض بسرعة متزايدة 3 ثوان
+  let speed = 250;
+  let elapsed = 0;
+  const total = 3000;
+
+  const quickFlash = () => {
+    device.state = !device.state;
+    renderDevices();
+
+    elapsed += speed;
+    speed = Math.max(40, speed - 25); // يسرّع أكثر وأكثر
 
     if (elapsed >= total) {
-      clearInterval(flash);
       device.state = false;
+      delete flashStopTimeouts[id];
       renderDevices();
       saveData('devices', devices);
+      return;
     }
-  }, interval);
 
-  timers[id] = flash;
+    flashStopTimeouts[id] = setTimeout(quickFlash, speed);
+  };
+
+  quickFlash();
+  saveData('devices', devices);
 }
 
 // ============================================
@@ -223,9 +293,15 @@ function openSettings(id) {
   currentEditId = id;
   document.getElementById('modal-title').textContent = `⚙️ ${device.name}`;
   document.getElementById('setting-name').value = device.name;
-  document.getElementById('setting-duration').value = device.duration;
 
-  // اختر الوضع الحالي
+  // فك المدة إلى س/د/ث
+  const h = Math.floor(device.duration / 3600);
+  const m = Math.floor((device.duration % 3600) / 60);
+  const s = device.duration % 60;
+  document.getElementById('duration-h').value = h;
+  document.getElementById('duration-m').value = m;
+  document.getElementById('duration-s').value = s;
+
   document.querySelectorAll('input[name="mode"]').forEach(radio => {
     radio.checked = radio.value === device.mode;
   });
@@ -249,10 +325,6 @@ function updateDurationVisibility() {
   }
 }
 
-function setDuration(min) {
-  document.getElementById('setting-duration').value = min;
-}
-
 function saveSettings() {
   if (!currentEditId) return;
   const device = devices.find(d => d.id === currentEditId);
@@ -260,35 +332,28 @@ function saveSettings() {
 
   const newName = document.getElementById('setting-name').value.trim() || device.name;
   const newMode = document.querySelector('input[name="mode"]:checked').value;
-  const newDuration = parseInt(document.getElementById('setting-duration').value) || 5;
+
+  const h = parseInt(document.getElementById('duration-h').value) || 0;
+  const m = parseInt(document.getElementById('duration-m').value) || 0;
+  const s = parseInt(document.getElementById('duration-s').value) || 0;
+  const totalSeconds = (h * 3600) + (m * 60) + s;
 
   device.name = newName;
   device.mode = newMode;
-  device.duration = newDuration;
+  if (totalSeconds > 0) device.duration = totalSeconds;
+
+  // نظّف المؤقتات القديمة
+  clearDeviceTimers(device.id);
 
   saveData('devices', devices);
   renderDevices();
   closeSettings();
 }
 
-// راقب تغيير الأوضاع لإظهار/إخفاء المدة
+// راقب تغيير الأوضاع
 document.addEventListener('change', (e) => {
   if (e.target.name === 'mode') updateDurationVisibility();
 });
-
-// ============================================
-// فحص الاتصال (مؤقت)
-// ============================================
-function updateConnectionStatus(online) {
-  const status = document.getElementById('status-connection');
-  if (online) {
-    status.textContent = '✅ التطبيق جاهز';
-    status.className = 'status online';
-  } else {
-    status.textContent = '⚠️ غير متصل';
-    status.className = 'status offline';
-  }
-}
 
 // ============================================
 // Service Worker
@@ -305,4 +370,3 @@ if ('serviceWorker' in navigator) {
 // ============================================
 renderDevices();
 renderSliders();
-updateConnectionStatus(true);
