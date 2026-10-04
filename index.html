@@ -10,20 +10,42 @@
 </head>
 <body>
   <header>
-    <h1>🏠 تحكم المنزل</h1>
+    <div class="header-top">
+      <h1>🏠 تحكم المنزل</h1>
+      <button class="main-settings-btn" onclick="openGeneralSettings()">⚙️</button>
+    </div>
     <p id="status-connection" class="status">✅ التطبيق جاهز</p>
   </header>
 
   <main>
+    <!-- الأجهزة -->
     <section id="devices"></section>
 
+    <!-- الحساسات -->
+    <section class="sensors-section">
+      <h2>🌡️ الحساسات</h2>
+      <div class="sensors-grid">
+        <div class="sensor-card" id="sensor-temp">
+          <div class="sensor-label">🌡️ الحرارة</div>
+          <div class="seven-seg" id="temp-display">--.-</div>
+          <div class="sensor-unit">°C</div>
+        </div>
+        <div class="sensor-card" id="sensor-gas">
+          <div class="sensor-label">💨 الغاز</div>
+          <div class="seven-seg" id="gas-display">---</div>
+          <div class="sensor-unit">ppm</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- السلايدرات -->
     <section class="sliders-section">
       <h2>🎚️ التحكم السريع</h2>
       <div id="sliders"></div>
     </section>
   </main>
 
-  <!-- نافذة الإعدادات -->
+  <!-- نافذة إعدادات الجهاز -->
   <div id="settings-modal" class="modal hidden">
     <div class="modal-content">
       <div class="modal-header">
@@ -53,7 +75,7 @@
             </label>
             <label class="mode-option">
               <input type="radio" name="mode" value="flash">
-              <span>⚡ فلاش دائم</span>
+              <span>⚡ فلاش</span>
             </label>
           </div>
         </label>
@@ -76,9 +98,66 @@
           </div>
         </div>
 
+        <div id="flash-speed-label" class="hidden">
+          <label>⚡ سرعة الفلاش</label>
+          <div class="modes">
+            <label class="mode-option">
+              <input type="radio" name="flashSpeed" value="1000">
+              <span>🐢 بطيء (1 ثانية)</span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="flashSpeed" value="700" checked>
+              <span>🚶 متوسط (0.7 ثانية)</span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="flashSpeed" value="400">
+              <span>🏃 سريع (0.4 ثانية)</span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="flashSpeed" value="200">
+              <span>⚡ سريع جداً (0.2 ثانية)</span>
+            </label>
+          </div>
+        </div>
+
         <div class="modal-actions">
           <button class="btn-save" onclick="saveSettings()">💾 حفظ</button>
           <button class="btn-cancel" onclick="closeSettings()">إلغاء</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة الإعدادات العامة -->
+  <div id="general-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>⚙️ الإعدادات العامة</h2>
+        <button class="close-btn" onclick="closeGeneralSettings()">✕</button>
+      </div>
+      <div class="modal-body">
+        <h3 class="section-title">🌡️ حدود التنبيه</h3>
+
+        <label>
+          🌡️ حد الحرارة للخطر (°C)
+          <input type="number" id="temp-threshold" min="0" max="100" value="40">
+        </label>
+
+        <label>
+          💨 حد الغاز للخطر (ppm)
+          <input type="number" id="gas-threshold" min="0" max="5000" value="500">
+        </label>
+
+        <h3 class="section-title">🔧 إعدادات إضافية</h3>
+
+        <label class="toggle-label">
+          <input type="checkbox" id="sound-alert">
+          <span>🔔 تشغيل الصوت عند التنبيه</span>
+        </label>
+
+        <div class="modal-actions">
+          <button class="btn-save" onclick="saveGeneralSettings()">💾 حفظ</button>
+          <button class="btn-cancel" onclick="closeGeneralSettings()">إلغاء</button>
         </div>
       </div>
     </div>
