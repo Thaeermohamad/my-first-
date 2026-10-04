@@ -1,4 +1,4 @@
-const CACHE = 'my-app-v2';
+const CACHE = 'my-app-v3';
 const FILES = ['./', './index.html', './manifest.json', './style.css', './app.js'];
 
 self.addEventListener('install', e => {
