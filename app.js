@@ -2,12 +2,12 @@
 // الإعدادات الافتراضية
 // ============================================
 const DEFAULT_DEVICES = [
-  { id: 'd1', name: 'الغرفة',   icon: '💡', mode: 'always',    duration: 300, state: false },
-  { id: 'd2', name: 'الصالة',   icon: '💡', mode: 'always',    duration: 300, state: false },
-  { id: 'd3', name: 'المطبخ',   icon: '💡', mode: 'always',    duration: 300, state: false },
-  { id: 'd4', name: 'الحمام',   icon: '🚿', mode: 'always',    duration: 300, state: false },
-  { id: 'd5', name: 'الحديقة',  icon: '🥀', mode: 'always',    duration: 300, state: false },
-  { id: 'd6', name: 'المدخل',   icon: '🚪', mode: 'always',    duration: 300, state: false },
+  { id: 'd1', name: 'الغرفة',  icon: '💡', mode: 'always', duration: 300, flashSpeed: 700, state: false },
+  { id: 'd2', name: 'الصالة',  icon: '💡', mode: 'always', duration: 300, flashSpeed: 700, state: false },
+  { id: 'd3', name: 'المطبخ',  icon: '💡', mode: 'always', duration: 300, flashSpeed: 700, state: false },
+  { id: 'd4', name: 'الحمام',  icon: '🚿', mode: 'always', duration: 300, flashSpeed: 700, state: false },
+  { id: 'd5', name: 'الحديقة', icon: '🌿', mode: 'always', duration: 300, flashSpeed: 700, state: false },
+  { id: 'd6', name: 'المدخل',  icon: '🚪', mode: 'always', duration: 300, flashSpeed: 700, state: false },
 ];
 
 const DEFAULT_SLIDERS = [
@@ -16,13 +16,22 @@ const DEFAULT_SLIDERS = [
   { id: 's3', name: 'الإضاءة', value: 80 },
 ];
 
+const DEFAULT_SENSORS = {
+  temperature: 24.5,
+  gas: 320,
+  tempThreshold: 40,
+  gasThreshold: 500,
+  soundAlert: false,
+};
+
 // ============================================
 // التخزين المحلي
 // ============================================
 function loadData() {
   const devices = JSON.parse(localStorage.getItem('devices')) || DEFAULT_DEVICES;
   const sliders = JSON.parse(localStorage.getItem('sliders')) || DEFAULT_SLIDERS;
-  return { devices, sliders };
+  const sensors = JSON.parse(localStorage.getItem('sensors')) || DEFAULT_SENSORS;
+  return { devices, sliders, sensors };
 }
 
 function saveData(key, data) {
@@ -32,11 +41,11 @@ function saveData(key, data) {
 // ============================================
 // الحالة العامة
 // ============================================
-let { devices, sliders } = loadData();
+let { devices, sliders, sensors } = loadData();
 let currentEditId = null;
-const activeTimers = {};   // مؤقتات العد التنازلي
-const flashIntervals = {}; // مؤقتات الفلاش
-const flashStopTimeouts = {}; // مؤقتات توقف الفلاش
+const activeTimers = {};
+const flashIntervals = {};
+const flashStopTimeouts = {};
 
 // ============================================
 // رسم الأجهزة
@@ -99,34 +108,66 @@ function renderSliders() {
 }
 
 // ============================================
+// رسم الحساسات
+// ============================================
+function renderSensors() {
+  const tempEl = document.getElementById('temp-display');
+  const gasEl = document.getElementById('gas-display');
+  const tempCard = document.getElementById('sensor-temp');
+  const gasCard = document.getElementById('sensor-gas');
+
+  // عرض الحرارة
+  tempEl.textContent = sensors.temperature.toFixed(1);
+  if (sensors.temperature >= sensors.tempThreshold) {
+    tempEl.classList.add('danger');
+    tempCard.classList.add('danger');
+  } else {
+    tempEl.classList.remove('danger');
+    tempCard.classList.remove('danger');
+  }
+
+  // عرض الغاز
+  gasEl.textContent = sensors.gas.toString().padStart(3, '0');
+  if (sensors.gas >= sensors.gasThreshold) {
+    gasEl.classList.add('danger');
+    gasCard.classList.add('danger');
+  } else {
+    gasEl.classList.remove('danger');
+    gasCard.classList.remove('danger');
+  }
+}
+
+// تحديث قيم الحساسات (محاكاة - لاحقاً من Firebase)
+function updateSensorValues() {
+  // 🚧 بيانات وهمية للتجربة
+  sensors.temperature = 20 + Math.random() * 25; // 20-45°C
+  sensors.gas = Math.floor(100 + Math.random() * 600); // 100-700 ppm
+  renderSensors();
+}
+
+// ============================================
 // التحكم بالأجهزة
 // ============================================
 function toggleDevice(id) {
   const device = devices.find(d => d.id === id);
   if (!device) return;
 
-  // إذا كان يفلش حالياً → أوقفه (سيناريو B: يومض أسرع 3 ثوان ثم يتوقف)
   if (device.isFlashing) {
     stopFlashing(id);
     return;
   }
 
   const newState = !device.state;
-
-  // نظّف كل المؤقتات السابقة لهذا الجهاز
   clearDeviceTimers(id);
   device.countdownText = '';
-
   device.state = newState;
 
   switch (device.mode) {
     case 'always':
-      // لا شي إضافي
       break;
 
     case 'momentary':
       if (newState) {
-        // شغّل ثانية ثم أطفئ
         activeTimers[id] = setTimeout(() => {
           device.state = false;
           delete activeTimers[id];
@@ -137,15 +178,11 @@ function toggleDevice(id) {
       break;
 
     case 'timer':
-      if (newState) {
-        startCountdown(id, device.duration);
-      }
+      if (newState) startCountdown(id, device.duration);
       break;
 
     case 'flash':
-      if (newState) {
-        startFlashing(id);
-      }
+      if (newState) startFlashing(id);
       break;
   }
 
@@ -153,16 +190,13 @@ function toggleDevice(id) {
   saveData('devices', devices);
 }
 
-// ============================================
-// تنظيف مؤقتات الجهاز
-// ============================================
 function clearDeviceTimers(id) {
   if (activeTimers[id]) {
     clearTimeout(activeTimers[id]);
     delete activeTimers[id];
   }
   if (flashIntervals[id]) {
-    clearInterval(flashIntervals[id]);
+    clearTimeout(flashIntervals[id]);
     delete flashIntervals[id];
   }
   if (flashStopTimeouts[id]) {
@@ -173,9 +207,7 @@ function clearDeviceTimers(id) {
   if (device) device.isFlashing = false;
 }
 
-// ============================================
-// ⏱️ العد التنازلي للمؤقت
-// ============================================
+// ⏱️ العد التنازلي
 function startCountdown(id, totalSeconds) {
   const device = devices.find(d => d.id === id);
   let remaining = totalSeconds;
@@ -203,34 +235,29 @@ function startCountdown(id, totalSeconds) {
   tick();
 }
 
-// ============================================
-// ⚡ الفلاش الدائم
-// ============================================
+// ⚡ الفلاش
 function startFlashing(id) {
   const device = devices.find(d => d.id === id);
   device.isFlashing = true;
-  let speed = 500; // يبدأ بـ 500ms
+  const speed = device.flashSpeed || 700;
+  let currentSpeed = speed;
 
   const doFlash = () => {
     device.state = !device.state;
     renderDevices();
-
-    // كل دورة، نسرّع شوي (سيناريو B عند الإيقاف)
-    if (speed > 80) speed -= 20;
-
-    flashIntervals[id] = setTimeout(doFlash, speed);
+    if (currentSpeed > 100) currentSpeed -= 30;
+    flashIntervals[id] = setTimeout(doFlash, currentSpeed);
   };
 
   doFlash();
   renderDevices();
 }
 
-// توقف الفلاش — سيناريو B: يومض أسرع 3 ثوان ثم يتوقف
+// إيقاف الفلاش (سيناريو B)
 function stopFlashing(id) {
   const device = devices.find(d => d.id === id);
   if (!device) return;
 
-  // نوقف المؤقت الحالي
   if (flashIntervals[id]) {
     clearTimeout(flashIntervals[id]);
     delete flashIntervals[id];
@@ -238,17 +265,15 @@ function stopFlashing(id) {
 
   device.isFlashing = false;
 
-  // نبدأ "النهاية السريعة" — يومض بسرعة متزايدة 3 ثوان
-  let speed = 250;
+  let speed = 300;
   let elapsed = 0;
   const total = 3000;
 
   const quickFlash = () => {
     device.state = !device.state;
     renderDevices();
-
     elapsed += speed;
-    speed = Math.max(40, speed - 25); // يسرّع أكثر وأكثر
+    speed = Math.max(50, speed - 30);
 
     if (elapsed >= total) {
       device.state = false;
@@ -284,7 +309,7 @@ function renameSlider(id, name) {
 }
 
 // ============================================
-// الإعدادات
+// إعدادات الجهاز
 // ============================================
 function openSettings(id) {
   const device = devices.find(d => d.id === id);
@@ -294,7 +319,6 @@ function openSettings(id) {
   document.getElementById('modal-title').textContent = `⚙️ ${device.name}`;
   document.getElementById('setting-name').value = device.name;
 
-  // فك المدة إلى س/د/ث
   const h = Math.floor(device.duration / 3600);
   const m = Math.floor((device.duration % 3600) / 60);
   const s = device.duration % 60;
@@ -306,7 +330,11 @@ function openSettings(id) {
     radio.checked = radio.value === device.mode;
   });
 
-  updateDurationVisibility();
+  document.querySelectorAll('input[name="flashSpeed"]').forEach(radio => {
+    radio.checked = parseInt(radio.value) === (device.flashSpeed || 700);
+  });
+
+  updateModeVisibility();
   document.getElementById('settings-modal').classList.remove('hidden');
 }
 
@@ -315,14 +343,15 @@ function closeSettings() {
   currentEditId = null;
 }
 
-function updateDurationVisibility() {
+function updateModeVisibility() {
   const selected = document.querySelector('input[name="mode"]:checked');
-  const label = document.getElementById('duration-label');
-  if (selected && selected.value === 'timer') {
-    label.classList.remove('hidden');
-  } else {
-    label.classList.add('hidden');
-  }
+  const durationLabel = document.getElementById('duration-label');
+  const flashSpeedLabel = document.getElementById('flash-speed-label');
+
+  if (!selected) return;
+
+  durationLabel.classList.toggle('hidden', selected.value !== 'timer');
+  flashSpeedLabel.classList.toggle('hidden', selected.value !== 'flash');
 }
 
 function saveSettings() {
@@ -332,6 +361,7 @@ function saveSettings() {
 
   const newName = document.getElementById('setting-name').value.trim() || device.name;
   const newMode = document.querySelector('input[name="mode"]:checked').value;
+  const newFlashSpeed = parseInt(document.querySelector('input[name="flashSpeed"]:checked').value);
 
   const h = parseInt(document.getElementById('duration-h').value) || 0;
   const m = parseInt(document.getElementById('duration-m').value) || 0;
@@ -340,9 +370,9 @@ function saveSettings() {
 
   device.name = newName;
   device.mode = newMode;
+  device.flashSpeed = newFlashSpeed;
   if (totalSeconds > 0) device.duration = totalSeconds;
 
-  // نظّف المؤقتات القديمة
   clearDeviceTimers(device.id);
 
   saveData('devices', devices);
@@ -352,8 +382,32 @@ function saveSettings() {
 
 // راقب تغيير الأوضاع
 document.addEventListener('change', (e) => {
-  if (e.target.name === 'mode') updateDurationVisibility();
+  if (e.target.name === 'mode') updateModeVisibility();
 });
+
+// ============================================
+// الإعدادات العامة
+// ============================================
+function openGeneralSettings() {
+  document.getElementById('temp-threshold').value = sensors.tempThreshold;
+  document.getElementById('gas-threshold').value = sensors.gasThreshold;
+  document.getElementById('sound-alert').checked = sensors.soundAlert;
+  document.getElementById('general-modal').classList.remove('hidden');
+}
+
+function closeGeneralSettings() {
+  document.getElementById('general-modal').classList.add('hidden');
+}
+
+function saveGeneralSettings() {
+  sensors.tempThreshold = parseInt(document.getElementById('temp-threshold').value) || 40;
+  sensors.gasThreshold = parseInt(document.getElementById('gas-threshold').value) || 500;
+  sensors.soundAlert = document.getElementById('sound-alert').checked;
+
+  saveData('sensors', sensors);
+  renderSensors();
+  closeGeneralSettings();
+}
 
 // ============================================
 // Service Worker
@@ -370,3 +424,7 @@ if ('serviceWorker' in navigator) {
 // ============================================
 renderDevices();
 renderSliders();
+renderSensors();
+
+// محاكاة قراءات الحساسات (كل 3 ثوان)
+setInterval(updateSensorValues, 3000);
